@@ -203,6 +203,9 @@ class Docs extends AbstractController {
 		$out = str_replace('public static download = (id: number, name: number): Promise<unknown> => rest.get(`/download/${id}/${name}`);',
 			'public static download = (id: string): void => { window.location.href = `${endpoint}/download/${id}`; }', $out);
 
+		$out = str_replace('public static logoutByToken = (session: number)',
+			'public static logoutByToken = (session: string)', $out);
+
 		return new Response($ts->prettify($out, $params->get('yauhenko.rest.project_dir')) ?: $out, Response::HTTP_OK, [
 			'Content-Type' => 'text/x.typescript'
 		]);
