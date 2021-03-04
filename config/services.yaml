@@ -1,6 +1,7 @@
 parameters:
     yauhenko.rest.env: '%kernel.environment%'
     yauhenko.rest.types_class: 'App\Types'
+    yauhenko.rest.cache_dir: '%kernel.cache_dir%'
     yauhenko.rest.project_dir: '%kernel.project_dir%'
     yauhenko.rest.controllers_dir: '%kernel.project_dir%/src/Controller'
 

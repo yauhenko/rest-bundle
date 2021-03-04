@@ -159,10 +159,10 @@ class TypeScript {
 		return 'I' . $name;
 	}
 
-	public function prettify(string $code, string $projectDir): string {
+	public function prettify(string $code, string $cacheDir): string {
 		$bin = '/usr/bin/prettier';
 		if(file_exists($bin)) {
-			$tmp = $projectDir . '/var/cache/' . uniqid() . '.ts';
+			$tmp = $cacheDir . '/' . uniqid() . '.ts';
 			file_put_contents($tmp, $code);
 			$out = [];
 			exec("{$bin} {$tmp}", $out);

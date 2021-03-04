@@ -206,7 +206,7 @@ class Docs extends AbstractController {
 		$out = str_replace('public static logoutByToken = (session: number)',
 			'public static logoutByToken = (session: string)', $out);
 
-		return new Response($ts->prettify($out, $params->get('yauhenko.rest.project_dir')) ?: $out, Response::HTTP_OK, [
+		return new Response($ts->prettify($out, $params->get('yauhenko.rest.cache_dir')) ?: $out, Response::HTTP_OK, [
 			'Content-Type' => 'text/x.typescript'
 		]);
 	}
