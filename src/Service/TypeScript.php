@@ -15,7 +15,6 @@ use Yauhenko\RestBundle\Attributes\TypeScript\Definition;
 
 class TypeScript {
 
-	protected array $classes = [];
 	protected array $definitions = [];
 	protected AnnotationReader $reader;
 	protected ClassResolver $classResolver;
@@ -42,7 +41,7 @@ class TypeScript {
 	}
 
 	public function registerType(string $name, string $type): self {
-		$this->definitions[$name] = 'export type ' . $name . ' = ' . $type . ';';
+		$this->registerRaw($name, 'export type ' . $name . ' = ' . $type . ';');
 		return $this;
 	}
 
@@ -74,11 +73,22 @@ class TypeScript {
 			$key = json_encode($key);
 			$definition[] = "{$key}: '{$value}'";
 		}
-		$this->definitions[$name] = "export const {$name}: {$type} = { " . implode(', ', $definition) . " };";
+		$this->registerRaw($name, "export const {$name}: {$type} = { " . implode(', ', $definition) . " };");
+		return $this;
+	}
+
+	public function registerInterface(string $class): self {
+		if(!class_exists($class)) throw new Exception('Invalid class: ' . $class);
+		//if(in_array($class, $this->classes)) return $this;
+		$slug = $this->getSlug($class);
+		$this->registerRaw($slug, $this->getInterfaceDefinition($class));
+		//$this->classes[] = $class;
 		return $this;
 	}
 
 	public function registerRaw(string $name, string $definition): self {
+		if(isset($this->definitions[$name]))
+			throw new Exception('Duplicate definition: ' . $name);
 		$this->definitions[$name] = $definition;
 		return $this;
 	}
@@ -90,7 +100,6 @@ class TypeScript {
 		$T = $this->classResolver->getAttribute($rc, Definition::class);
 		$definition = '';// ' . $class . PHP_EOL;
 		$definition .= 'export interface ' . $this->getSlug($class)  . ($T ? ($T->getValue() ? '<T>' : null) : null) . ' {' . PHP_EOL;
-		//foreach($rc->getProperties(ReflectionProperty::IS_PUBLIC) as $rp) {
 
 		$defaults = $rc->getDefaultProperties();
 
@@ -109,11 +118,13 @@ class TypeScript {
 				$typeName = 'any';
 				$nullable = true;
 			}
+
 			if(isset(self::MAPPING[$typeName])) {
 				$typeName = self::MAPPING[$typeName];
 			} elseif(preg_match('/(Entity|Model)/', $typeName)) {
 				$typeName = $this->getSlug($typeName);
 			}
+
 			if($name === 'id') {
 				$name = 'readonly ' . $name;
 			}
@@ -173,29 +184,15 @@ class TypeScript {
 		}
 	}
 
-	public function registerInterface(string $class): void {
-		if(!class_exists($class)) throw new Exception('Invalid class: ' . $class);
-		if(in_array($class, $this->classes)) return;
-		$this->classes[] = $class;
-	}
-
-	public function registerInterfaces(array $classes): void {
-		foreach($classes as $class) {
+	public function registerInterfacesFromDir(string $dir, string $namespace = 'App'): self {
+		foreach($this->classResolver->getNames($dir, $namespace) as $class) {
 			$this->registerInterface($class);
 		}
-	}
-
-	public function registerInterfacesFromDir(string $dir, string $namespace = 'App'): void {
-		$classes = $this->classResolver->getNames($dir, $namespace);
-		$this->registerInterfaces($classes);
+		return $this;
 	}
 
 	public function getTypeScriptCode(): string {
-		$out = implode(PHP_EOL . PHP_EOL, array_values($this->definitions)) . PHP_EOL . PHP_EOL;
-		foreach($this->classes as $class) {
-			$out .= $this->getInterfaceDefinition($class);
-		}
-		return trim($out);
+		return trim(implode(PHP_EOL . PHP_EOL, array_values($this->definitions)) . PHP_EOL . PHP_EOL);
 	}
 
 }
