@@ -111,7 +111,11 @@ class ObjectBuilder {
 		} elseif($type === DateTimeInterface::class) {
 			return new DateTime($value);
 		} elseif($type === 'mixed') {
-			if(is_numeric($value)) return (float)$value; else return (string)$value;
+			if(is_numeric($value)) return (float)$value;
+			elseif(is_array($value) && $value['id']) {
+				if(is_numeric($value['id'])) return (int)$value['id'];
+				else return (string)$value['id'];
+			} else return (string)$value;
 		} else {
 			throw new Exception('Failed to convert. Unexpected format: ' . $type);
 		}
