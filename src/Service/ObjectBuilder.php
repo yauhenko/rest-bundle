@@ -115,7 +115,7 @@ class ObjectBuilder {
 			elseif(is_array($value) && $value['id']) {
 				if(is_numeric($value['id'])) return (int)$value['id'];
 				else return (string)$value['id'];
-			} else return (string)$value;
+			} else return $value;
 		} else {
 			throw new Exception('Failed to convert. Unexpected format: ' . $type);
 		}
