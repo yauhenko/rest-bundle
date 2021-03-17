@@ -18,6 +18,7 @@ class TypeScript {
 	protected array $definitions = [];
 	protected AnnotationReader $reader;
 	protected ClassResolver $classResolver;
+	protected array $groups = [];
 
 	protected const MAPPING = [
 		'mixed' => 'any',
@@ -79,10 +80,56 @@ class TypeScript {
 
 	public function registerInterface(string $class): self {
 		if(!class_exists($class)) throw new Exception('Invalid class: ' . $class);
-		//if(in_array($class, $this->classes)) return $this;
 		$slug = $this->getSlug($class);
 		$this->registerRaw($slug, $this->getInterfaceDefinition($class));
-		//$this->classes[] = $class;
+
+		// Groups parsing
+
+		$rc = new ReflectionClass($class);
+		$reader = new AnnotationReader;
+
+		foreach($rc->getMethods() as $rm) {
+			/** @var Groups $a */
+			if($a = $reader->getMethodAnnotation($rm, Groups::class)) {
+				foreach($a->getGroups() as $group) {
+					if(!in_array($group, $this->groups)) {
+						$this->groups[] = $group;
+					}
+				}
+			}
+			foreach($rm->getAttributes(Groups::class) as $a) {
+				foreach($a->getArguments() as $groups) {
+					foreach($groups as $group) {
+						if(!in_array($group, $this->groups)) {
+							$this->groups[] = $group;
+						}
+					}
+				}
+			}
+		}
+
+		foreach($rc->getProperties() as $rp) {
+			/** @var Groups $a */
+			if($a = $reader->getPropertyAnnotation($rp, Groups::class)) {
+				foreach($a->getGroups() as $group) {
+					if(!in_array($group, $this->groups)) {
+						$this->groups[] = $group;
+					}
+				}
+			}
+			foreach($rp->getAttributes(Groups::class) as $a) {
+				foreach($a->getArguments() as $groups) {
+					foreach($groups as $group) {
+						if(!in_array($group, $this->groups)) {
+							$this->groups[] = $group;
+						}
+					}
+				}
+			}
+		}
+
+		// Groups parsing end
+
 		return $this;
 	}
 
@@ -193,6 +240,10 @@ class TypeScript {
 
 	public function getTypeScriptCode(): string {
 		return trim(implode(PHP_EOL . PHP_EOL, array_values($this->definitions)) . PHP_EOL . PHP_EOL);
+	}
+
+	public function getGroups(): array {
+		return $this->groups;
 	}
 
 }
