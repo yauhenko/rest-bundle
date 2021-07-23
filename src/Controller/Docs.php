@@ -5,7 +5,6 @@ namespace Yauhenko\RestBundle\Controller;
 use ReflectionClass;
 use ReflectionProperty;
 use ReflectionNamedType;
-use Yauhenko\RestBundle\TypesInterface;
 use Yauhenko\RestBundle\Service\TypeScript;
 use Yauhenko\RestBundle\Attributes\Api\Method;
 use Yauhenko\RestBundle\Service\ClassResolver;
@@ -25,14 +24,14 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 class Docs extends AbstractController {
 
 	#[Route]
-	public function docs(ParameterBagInterface $params): Response {
-		if($params->get('yauhenko.rest.env') === 'prod')
+	public function docs(ParameterBagInterface $parameterBag): Response {
+		if(!$parameterBag->get('yauhenko.rest.docs_enabled'))
 			throw new NotFoundHttpException('Not found');
 
 		$resolver = new ClassResolver;
 		$reader = new AnnotationReader;
 		$ts = new TypeScript;
-		$classes = $resolver->getReflections($params->get('yauhenko.rest.controllers_dir'));
+		$classes = $resolver->getReflections($parameterBag->get('yauhenko.rest.controllers_dir'));
 		$controllers = [];
 
 		foreach($classes as $rc) {
@@ -118,7 +117,12 @@ class Docs extends AbstractController {
 		}
 
 
-		return $this->render('@Rest/docs.twig', ['docs' => $controllers]);
+		return $this->render('@Rest/docs.twig', [
+			'docs' => $controllers,
+			'ts_enabled' => $parameterBag->get('yauhenko.rest.ts_enabled'),
+			'logo' => $parameterBag->get('yauhenko.rest.logo'),
+			'title' => $parameterBag->get('yauhenko.rest.title'),
+		]);
 
 	}
 
@@ -126,16 +130,16 @@ class Docs extends AbstractController {
 	#[Route('/remote.ts')]
 	public function remote(ParameterBagInterface $params): Response {
 
-		if($params->get('yauhenko.rest.env') === 'prod')
+		if(!$params->get('yauhenko.rest.ts_enabled'))
 			throw new NotFoundHttpException('Not found');
 
 		$resolver = new ClassResolver;
 		$ts = TypeScript::factory();
 
-		/** @var TypesInterface $typesClass */
 		$typesClass = $params->get('yauhenko.rest.types_class');
-		if(class_exists($typesClass)) {
-			$typesClass::register($ts);
+
+		if(class_exists($typesClass) && method_exists($typesClass, 'registerTypes')) {
+			call_user_func([$typesClass, 'registerTypes'], $ts);
 		}
 
 		$out = "import { rest, endpoint } from './rest-client';\n\n";
@@ -148,7 +152,7 @@ class Docs extends AbstractController {
 
 		foreach($classes as $rc) {
 
-			if(!$classInfo = $resolver->getAttribute($rc, Controller::class)) continue;
+			if(!$resolver->getAttribute($rc, Controller::class)) continue;
 
 			$classRoute = $resolver->getAttribute($rc, Route::class);
 
@@ -194,17 +198,9 @@ class Docs extends AbstractController {
 
 		$out .= "export const API = { " . implode(', ', $export) . " }\n";
 
-		$out = str_replace('public static uploadForm = (): Promise<IUpload> => rest.post(`/upload/form`);',
-			'public static uploadForm = (request: FormData): Promise<IUpload> => rest.post(`/upload/form`, request);', $out);
-
-		$out = str_replace('public static getUpload = (id: number)',
-			'public static getUpload = (id: string)', $out);
-
-		$out = str_replace('public static download = (id: number, name: number): Promise<unknown> => rest.get(`/download/${id}/${name}`);',
-			'public static download = (id: string): void => { window.location.href = `${endpoint}/download/${id}`; }', $out);
-
-		$out = str_replace('public static logoutByToken = (session: number)',
-			'public static logoutByToken = (session: string)', $out);
+		if(class_exists($typesClass) && method_exists($typesClass, 'codePostProcessor')) {
+			$out = call_user_func([$typesClass, 'codePostProcessor'], $out);
+		}
 
 		return new Response($ts->prettify($out, $params->get('yauhenko.rest.cache_dir')) ?: $out, Response::HTTP_OK, [
 			'Content-Type' => 'text/x.typescript'
@@ -213,7 +209,9 @@ class Docs extends AbstractController {
 
 
 	#[Route('/rest.zip')]
-	public function restZip(): BinaryFileResponse {
+	public function restZip(ParameterBagInterface $params): BinaryFileResponse {
+		if(!$params->get('yauhenko.rest.ts_enabled'))
+			throw new NotFoundHttpException('Not found');
 		return new BinaryFileResponse(__DIR__ . '/../../assets/rest.zip');
 	}
 

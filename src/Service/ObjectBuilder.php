@@ -152,6 +152,7 @@ class ObjectBuilder {
 
 	public static function isPropertyDefined(object $object, string $property): bool {
 		try {
+			/** @noinspection PhpExpressionResultUnusedInspection */
 			$object->$property;
 			return true;
 		} catch(Throwable) {

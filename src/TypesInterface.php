@@ -6,6 +6,8 @@ use Yauhenko\RestBundle\Service\TypeScript;
 
 interface TypesInterface {
 
-	public static function register(TypeScript $ts): void;
+	public static function registerTypes(TypeScript $ts): void;
+
+	public static function codePostProcessor(string $code): string;
 
 }

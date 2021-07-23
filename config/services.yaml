@@ -1,5 +1,8 @@
 parameters:
-    yauhenko.rest.env: '%kernel.environment%'
+    yauhenko.rest.title: 'Rest API Docs'
+    yauhenko.rest.logo: ''
+    yauhenko.rest.docs_enabled: true
+    yauhenko.rest.ts_enabled: true
     yauhenko.rest.types_class: 'App\Types'
     yauhenko.rest.cache_dir: '%kernel.cache_dir%'
     yauhenko.rest.project_dir: '%kernel.project_dir%'

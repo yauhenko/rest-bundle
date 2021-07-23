@@ -1,12 +1,22 @@
 {
 	"name": "yauhenko/rest-bundle",
-	"version": "0.1.6",
+	"version": "0.2.0",
 	"type": "symfony-bundle",
 	"minimum-stability": "stable",
 	"description": "REST and Docs for Symfony",
 	"license": "proprietary",
 	"require": {
-		"php": "^8.0"
+		"php": "^8.0"},
+	"require-dev": {
+		"doctrine/annotations": "^1.0",
+		"doctrine/doctrine-bundle": "^2.2",
+		"doctrine/doctrine-migrations-bundle": "^3.0",
+		"symfony/security-bundle": "5.3.*",
+
+		"doctrine/orm": "^2.8",
+		"sensio/framework-extra-bundle": "^6.0",
+		"symfony/validator": "^5.3",
+		"symfony/serializer": "^5.3"
 	},
 	"config": {
 		"sort-packages": true
@@ -19,7 +29,7 @@
 	"extra": {
 		"symfony": {
 			"allow-contrib": false,
-			"require": "5.2.*"
+			"require": "5.3.*"
 		}
 	}
 }

@@ -24,7 +24,7 @@ class ControllerArgumentsSubscriber implements EventSubscriberInterface {
 			$class = get_class($arg);
 			if(class_exists($class)) {
 				$rc = new ReflectionClass($class);
-				if($attrs = $rc->getAttributes(RequestModel::class)) {
+				if($rc->getAttributes(RequestModel::class)) {
 					$args[$idx] = $this->builder->build($class, $request->request->all());
 				}
 			}
