@@ -5,7 +5,6 @@ parameters:
     yauhenko.rest.ts_enabled: true
     yauhenko.rest.types_class: 'App\Types'
     yauhenko.rest.cache_dir: '%kernel.cache_dir%'
-    yauhenko.rest.project_dir: '%kernel.project_dir%'
     yauhenko.rest.controllers_dir: '%kernel.project_dir%/src/Controller'
 
 services:
