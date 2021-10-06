@@ -39,6 +39,7 @@ class TypeScript {
 		$this->reader = new AnnotationReader;
 		$this->classResolver = new ClassResolver;
 		$this->registerType('TDateTime', 'string');
+		$this->registerType('TIdentifier', 'string | number');
 	}
 
 	public function registerType(string $name, string $type): self {

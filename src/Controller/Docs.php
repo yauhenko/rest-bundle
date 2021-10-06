@@ -174,7 +174,7 @@ class Docs extends AbstractController {
 
 				preg_match_all('/\{([A-z0-9]+)\}/isU', $route->getPath(), $m, PREG_PATTERN_ORDER);
 				foreach($m[1] as $a) {
-					$args[] = "{$a}: number | string";
+					$args[] = "{$a}: TIdentifier";
 				}
 
 				if($info->getRequest()) {
