@@ -74,7 +74,7 @@ class Docs extends AbstractController {
 								$name = $reader->getPropertyAnnotation($rpi, Name::class);
 							}
 
-							$name = $name ? $name->getValue() : null;
+							$name = $name?->getValue();
 							$param = [
 								'name' => $rpi->getName(),
 								'description' => $name,
@@ -104,7 +104,7 @@ class Docs extends AbstractController {
 					'route' => $controller['prefix'] . $route->getPath(),
 					'methods' => $route->getMethods(),
 					'params' => $params,
-					'access' => $access ? $access->getAttributes() : null,
+					'access' => $access?->getAttributes(),
 					'request' => [$info->getRequest(), $ts->getSlug($info->getRequest()), $info->getRequest() && class_exists($info->getRequest()) ? $ts->getInterfaceDefinition($info->getRequest()) : ''],
 					'response' => [$info->getResponse(), $ts->getSlug($info->getResponse()), $info->getResponse() && class_exists($info->getResponse()) ? $ts->getInterfaceDefinition($info->getResponse()) : ''],
 				];
@@ -174,7 +174,7 @@ class Docs extends AbstractController {
 
 				preg_match_all('/\{([A-z0-9]+)\}/isU', $route->getPath(), $m, PREG_PATTERN_ORDER);
 				foreach($m[1] as $a) {
-					$args[] = "{$a}: number";
+					$args[] = "{$a}: number | string";
 				}
 
 				if($info->getRequest()) {
