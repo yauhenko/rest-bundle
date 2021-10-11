@@ -5,7 +5,6 @@ namespace Yauhenko\RestBundle\Service;
 use Exception;
 use ReflectionClass;
 use ReflectionNamedType;
-use Doctrine\Common\Annotations\AnnotationReader;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints\Choice;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -16,7 +15,6 @@ use Yauhenko\RestBundle\Attributes\TypeScript\Definition;
 class TypeScript {
 
 	protected array $definitions = [];
-	protected AnnotationReader $reader;
 	protected ClassResolver $classResolver;
 	protected array $groups = [];
 
@@ -36,7 +34,6 @@ class TypeScript {
 	}
 
 	public function __construct() {
-		$this->reader = new AnnotationReader;
 		$this->classResolver = new ClassResolver;
 		$this->registerType('TDateTime', 'string');
 		$this->registerType('TIdentifier', 'string | number');
@@ -87,17 +84,8 @@ class TypeScript {
 		// Groups parsing
 
 		$rc = new ReflectionClass($class);
-		$reader = new AnnotationReader;
 
 		foreach($rc->getMethods() as $rm) {
-			/** @var Groups $a */
-			if($a = $reader->getMethodAnnotation($rm, Groups::class)) {
-				foreach($a->getGroups() as $group) {
-					if(!in_array($group, $this->groups)) {
-						$this->groups[] = $group;
-					}
-				}
-			}
 			foreach($rm->getAttributes(Groups::class) as $a) {
 				foreach($a->getArguments() as $groups) {
 					foreach($groups as $group) {
@@ -111,13 +99,6 @@ class TypeScript {
 
 		foreach($rc->getProperties() as $rp) {
 			/** @var Groups $a */
-			if($a = $reader->getPropertyAnnotation($rp, Groups::class)) {
-				foreach($a->getGroups() as $group) {
-					if(!in_array($group, $this->groups)) {
-						$this->groups[] = $group;
-					}
-				}
-			}
 			foreach($rp->getAttributes(Groups::class) as $a) {
 				foreach($a->getArguments() as $groups) {
 					foreach($groups as $group) {
@@ -177,16 +158,8 @@ class TypeScript {
 				$name = 'readonly ' . $name;
 			}
 
-			if(!$groups = $this->classResolver->getAttribute($rp, Groups::class)) {
-				/** @var Groups|null $groups */
-				$groups = $this->reader->getPropertyAnnotation($rp, Groups::class);
-			}
-
-			if(!$notBlank = $this->classResolver->getAttribute($rp, NotBlank::class)) {
-				/** @var NotBlank|null $notBlank */
-				$notBlank = $this->reader->getPropertyAnnotation($rp, NotBlank::class);
-			}
-
+			$groups = $this->classResolver->getAttribute($rp, Groups::class);
+			$notBlank = $this->classResolver->getAttribute($rp, NotBlank::class);
 			$notNull = $this->classResolver->getAttribute($rp, NotNull::class);
 			$undefined = $this->classResolver->getAttribute($rp, Undefined::class);
 			$T = $this->classResolver->getAttribute($rp, Definition::class);

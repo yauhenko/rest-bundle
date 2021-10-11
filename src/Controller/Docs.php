@@ -11,7 +11,6 @@ use Yauhenko\RestBundle\Service\ClassResolver;
 use Symfony\Component\HttpFoundation\Response;
 use Yauhenko\RestBundle\Attributes\Common\Name;
 use Symfony\Component\Routing\Annotation\Route;
-use Doctrine\Common\Annotations\AnnotationReader;
 use Yauhenko\RestBundle\Attributes\Api\Controller;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -29,7 +28,6 @@ class Docs extends AbstractController {
 			throw new NotFoundHttpException('Not found');
 
 		$resolver = new ClassResolver;
-		$reader = new AnnotationReader;
 		$ts = new TypeScript;
 		$classes = $resolver->getReflections($parameterBag->get('yauhenko.rest.controllers_dir'));
 		$controllers = [];
@@ -55,7 +53,7 @@ class Docs extends AbstractController {
 				if(!$route || !$info) continue;
 
 				/** @var IsGranted $access */
-				$access = $reader->getMethodAnnotation($rm, IsGranted::class);
+				$access = $resolver->getAttribute($rm, IsGranted::class);
 
 				$params = [];
 
@@ -68,12 +66,7 @@ class Docs extends AbstractController {
 						foreach($rci->getProperties(ReflectionProperty::IS_PUBLIC) as $rpi) {
 							/** @var ReflectionNamedType $t */
 							$t = $rpi->getType();
-
-							if(!$name = $resolver->getAttribute($rpi, Name::class)) {
-								/** @var Name|null $name */
-								$name = $reader->getPropertyAnnotation($rpi, Name::class);
-							}
-
+							$name = $resolver->getAttribute($rpi, Name::class);
 							$name = $name?->getValue();
 							$param = [
 								'name' => $rpi->getName(),
@@ -83,10 +76,6 @@ class Docs extends AbstractController {
 								'nullable' => $t->allowsNull(),
 								'default' => $defaults[$rpi->getName()] ?? null
 							];
-
-							if($reader->getPropertyAnnotation($rpi, NotBlank::class)) {
-								$param['required'] = true;
-							}
 
 							if($rpi->getAttributes(NotBlank::class)) {
 								$param['required'] = true;

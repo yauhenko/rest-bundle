@@ -15,19 +15,16 @@ use Symfony\Component\Validator\Constraint;
 use Doctrine\Common\Collections\Collection;
 use Yauhenko\RestBundle\Attributes\Common\Name;
 use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Annotations\AnnotationReader;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class ObjectBuilder {
 
-	protected AnnotationReader $reader;
 	protected ValidatorInterface $validator;
 	protected TranslatorInterface $translator;
 	protected EntityManagerInterface $entityManager;
 
 	public function __construct(ValidatorInterface $validator, TranslatorInterface $translator, EntityManagerInterface $entityManager) {
-		$this->reader = new AnnotationReader;
 		$this->validator = $validator;
 		$this->translator = $translator;
 		$this->entityManager = $entityManager;
@@ -65,13 +62,6 @@ class ObjectBuilder {
 				$a = $a->newInstance();
 				if($a instanceof Constraint) {
 					$asserts[] = $a;
-				}
-			}
-
-			// Processing Annotations (old)
-			foreach($this->reader->getPropertyAnnotations($rp) as $annotation) {
-				if($annotation instanceof Constraint) {
-					$asserts[] = $annotation;
 				}
 			}
 
