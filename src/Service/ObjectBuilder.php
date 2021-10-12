@@ -10,6 +10,7 @@ use DateTimeInterface;
 use ReflectionProperty;
 use ReflectionNamedType;
 use ReflectionUnionType;
+use ReflectionException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Validator\Constraint;
 use Doctrine\Common\Collections\Collection;
@@ -30,6 +31,14 @@ class ObjectBuilder {
 		$this->entityManager = $entityManager;
 	}
 
+	/**
+	 * @template T
+	 * @param class-string $className
+	 * @param array $data
+	 * @param callable|null $resolve
+	 * @return T
+	 * @throws ReflectionException
+	 */
 	public function build(string $className, array $data = [], callable $resolve = null): object {
 		$rc = new ReflectionClass($className);
 		$object = $rc->newInstanceWithoutConstructor();
@@ -111,7 +120,14 @@ class ObjectBuilder {
 		}
 	}
 
-	public function getOne($id, string $className): mixed {
+	/**
+	 * @template T
+	 * @param string|int|null $id
+	 * @param class-string<T> $className
+	 * @return T
+	 * @throws Exception
+	 */
+	public function getOne(int|string|null $id, string $className): mixed {
 		if($id === null) return null;
 		/** @var mixed $item */
 		$item = $this->entityManager->find($className, $id);
@@ -119,6 +135,13 @@ class ObjectBuilder {
 		return $item;
 	}
 
+	/**
+	 * @template T
+	 * @param array $ids
+	 * @param class-string<T> $className
+	 * @return Collection<T>
+	 * @throws Exception
+	 */
 	public function getMany(array $ids, string $className): Collection {
 		$collection = new ArrayCollection();
 		foreach($ids as $id) {
@@ -135,8 +158,16 @@ class ObjectBuilder {
 			if(method_exists($object, $setter)) {
 				call_user_func([$object, $setter], $value);
 			} elseif(property_exists($object, $key)) {
-				$object->{$key} = $value;
+				$object->$key = $value;
 			}
+		}
+	}
+
+	public function getValue(object $object, string $property, mixed $defaultValue = null): mixed {
+		if(self::isPropertyDefined($object, $property)) {
+			return $object->$property;
+		} else {
+			return $defaultValue;
 		}
 	}
 
