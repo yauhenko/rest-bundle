@@ -16,6 +16,8 @@ use Symfony\Component\Validator\Constraint;
 use Doctrine\Common\Collections\Collection;
 use Yauhenko\RestBundle\Attributes\Common\Name;
 use Doctrine\Common\Collections\ArrayCollection;
+use Yauhenko\RestBundle\Attributes\Api\Validator;
+use Yauhenko\RestBundle\Attributes\Api\Processor;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
@@ -64,6 +66,42 @@ class ObjectBuilder {
 				}
 			}
 
+			if($name = $rp->getAttributes(Name::class)) {
+				$name = $name[0]->newInstance();
+			} else {
+				$name = $key;
+			}
+
+			$name = $this->translator->trans($name);
+
+			if($processors = $rp->getAttributes(Processor::class)) {
+				foreach($processors as $pa) {
+					/** @var Processor $pi */
+					$pi = $pa->newInstance();
+					try {
+						$processor = $pi->getProcessor();
+						if(is_string($processor)) $processor = [$object, $processor];
+						$value = call_user_func($processor, $value);
+					} catch(Throwable $err) {
+						throw new Exception($name . ': ' . $err->getMessage());
+					}
+				}
+			}
+
+			if($validators = $rp->getAttributes(Validator::class)) {
+				foreach($validators as $va) {
+					/** @var Validator $vi */
+					$vi = $va->newInstance();
+					try {
+						$validator = $vi->getValidator();
+						if(is_string($validator)) $validator = [$object, $validator];
+						call_user_func($validator, $value);
+					} catch(Throwable $err) {
+						throw new Exception($name . ': ' . $err->getMessage());
+					}
+				}
+			}
+
 			$asserts = [];
 
 			// Processing Attributes
@@ -74,16 +112,13 @@ class ObjectBuilder {
 				}
 			}
 
-			if($name = $rp->getAttributes(Name::class)) {
-				$name = $name[0]->newInstance();
-			}
-
 			$err = $this->validator->validate($value, $asserts);
 			if($err->count()) {
 				$err = $err->get(0);
-				throw new Exception($this->translator->trans($name ? $name->__toString() : $key) .
-					': ' . $err->getMessage());
+				throw new Exception($name . ': ' . $err->getMessage());
 			}
+
+
 
 			if($resolve) {
 				$value = call_user_func($resolve, $key, $value);
