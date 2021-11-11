@@ -13,18 +13,28 @@ class RequestSubscriber implements EventSubscriberInterface {
 		$request = $event->getRequest();
 		//$request->setLocale('en');
 		$body = $request->getContent() ?: $request->query->get('__payload');
-		if($request->getMethod() === 'OPTIONS') {
-			$response = new Response(null);
-			$event->setResponse($response);
-		} elseif($body) {
+        $requestMethod = $request->getMethod();
+        $contentType = $request->headers->get('content-type');
+
+		if($requestMethod === 'OPTIONS') {
+            $response = new Response(null);
+            $event->setResponse($response);
+
+        } elseif($contentType === 'application/x-www-form-urlencoded' || str_starts_with($contentType, 'multipart/form-data')) {
+            $data = $request->request->all();
+
+		} elseif($body || $contentType === 'application/json') {
 			$data = json_decode($body, true);
 			if(!is_array($data)) {
 				$event->setResponse(new JsonResponse(['error' => 'Malformed JSON'], 400));
 				return;
 			}
-		} elseif($request->getMethod() === 'GET') {
+
+		} elseif($requestMethod === 'GET') {
 			$data = $request->query->all();
+
 		}
+
 		if(isset($data)) {
 			array_walk_recursive($data, function(&$value) {
 				if(is_string($value)) $value = trim($value);
