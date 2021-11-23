@@ -40,16 +40,29 @@ class ClassResolver {
 		return $result;
 	}
 
-	public function getAttribute(ReflectionClass|ReflectionProperty|ReflectionMethod $reflection, string $name): ?object {
-		if($a = $reflection->getAttributes($name)) {
+    /**
+     * @template T
+     * @param ReflectionClass|ReflectionProperty|ReflectionMethod $reflection
+     * @param class-string $className
+     * @return T
+     * @noinspection PhpReturnDocTypeMismatchInspection
+     */
+	public function getAttribute(ReflectionClass|ReflectionProperty|ReflectionMethod $reflection, string $className) {
+		if($a = $reflection->getAttributes($className)) {
 			return $a[0]->newInstance();
 		} else {
 			return null;
 		}
 	}
 
-	public function getAttributes(ReflectionClass|ReflectionProperty|ReflectionMethod $reflection, string $name): array {
-		$attributes = $reflection->getAttributes($name);
+    /**
+     * @template T
+     * @param ReflectionClass|ReflectionProperty|ReflectionMethod $reflection
+     * @param class-string $className
+     * @return T[]
+     */
+	public function getAttributes(ReflectionClass|ReflectionProperty|ReflectionMethod $reflection, string $className): array {
+		$attributes = $reflection->getAttributes($className);
 		foreach($attributes as $k => $a) {
 			$attributes[$k] = $a->newInstance();
 		}

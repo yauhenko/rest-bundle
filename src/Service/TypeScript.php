@@ -7,11 +7,12 @@ use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
 use ReflectionNamedType;
+use ReflectionUnionType;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints\Choice;
+use Yauhenko\RestBundle\Attributes\Api\RequestModel;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Yauhenko\RestBundle\Attributes\TypeScript\Hidden;
-use Yauhenko\RestBundle\Attributes\TypeScript\NotNull;
 use Yauhenko\RestBundle\Attributes\TypeScript\Visible;
 use Yauhenko\RestBundle\Attributes\TypeScript\Undefined;
 use Yauhenko\RestBundle\Attributes\TypeScript\Definition;
@@ -30,7 +31,7 @@ class TypeScript {
 		'array' => '[]',
 		'DateTimeInterface' => 'TDateTime',
 		'DateTime' => 'TDateTime',
-		'DateTimeZone' => 'string',
+		'DateTimeZone' => 'TDateTimeZone',
 	];
 
 	public static function factory(): self {
@@ -40,6 +41,7 @@ class TypeScript {
 	public function __construct() {
 		$this->classResolver = new ClassResolver;
 		$this->registerType('TDateTime', 'string');
+		$this->registerType('TDateTimeZone', 'string');
 		$this->registerType('TIdentifier', 'string | number');
 	}
 
@@ -83,7 +85,9 @@ class TypeScript {
 	public function registerInterface(string $class): self {
 		if(!class_exists($class)) throw new Exception('Invalid class: ' . $class);
 		$slug = $this->getSlug($class);
-		$this->registerRaw($slug, $this->getInterfaceDefinition($class));
+        if($definition = $this->getInterfaceDefinition($class)) {
+            $this->registerRaw($slug, $definition);
+        }
 
 		// Groups parsing
 
@@ -126,11 +130,13 @@ class TypeScript {
 		return $this;
 	}
 
-	public function getInterfaceDefinition(?string $class): string {
+	public function getInterfaceDefinition(?string $class): ?string {
 		if(!$class) return '';
 		$rc = new ReflectionClass($class);
 		/** @var Definition|null $definition */
 		$definition = $this->classResolver->getAttribute($rc, Definition::class);
+		$hidden = $this->classResolver->getAttribute($rc, Hidden::class);
+        if($hidden) return null;
 
 		$result = 'export interface ' . $this->getSlug($class) .
             ($definition ? ($definition->getValue() ? '<T>' : null) : null) . ' {' . PHP_EOL;
@@ -157,8 +163,7 @@ class TypeScript {
 
     private function getRefDefinition(ReflectionProperty|ReflectionMethod $r, array $defaults = [], array & $names = []): ?string {
 
-        $definition = '';
-
+        $result = '';
         $name = $r->getName();
 
         if($r instanceof ReflectionMethod) {
@@ -175,18 +180,21 @@ class TypeScript {
         if(in_array($name, $names)) return null;
         $names[] = $name;
 
+        $rc = $r->getDeclaringClass();
+
         // Attributes
         $hidden = $this->classResolver->getAttribute($r, Hidden::class);
         $visible = $this->classResolver->getAttribute($r, Visible::class);
         if($hidden) return null;
         $groups = $this->classResolver->getAttribute($r, Groups::class);
-        $notBlank = $this->classResolver->getAttribute($r, NotBlank::class);
-        $notNull = $this->classResolver->getAttribute($r, NotNull::class);
-        $undefined = $this->classResolver->getAttribute($r, Undefined::class);
-        $T = $this->classResolver->getAttribute($r, Definition::class);
-        $choice = $this->classResolver->getAttribute($r, Choice::class);
+        $request = $this->classResolver->getAttribute($rc, RequestModel::class);
 
-        /** @var ReflectionNamedType $type */
+        if(!$groups && !$request && !$visible) return null;
+
+        $notBlank = $this->classResolver->getAttribute($r, NotBlank::class);
+        $undefined = $this->classResolver->getAttribute($r, Undefined::class);
+        $definition = $this->classResolver->getAttribute($r, Definition::class);
+        $choice = $this->classResolver->getAttribute($r, Choice::class);
 
         if($r instanceof ReflectionMethod) {
             $type = $r->getReturnType();
@@ -194,38 +202,40 @@ class TypeScript {
             $type = $r->getType();
         }
 
-        if($type) {
-            $nullable = $type->allowsNull();
-            $typeName = $type->getName();
+        if($type instanceof ReflectionUnionType) {
+            $types = [];
+            foreach($type->getTypes() as $type) {
+                $types[] = $this->getTypeDefinition($type, $definition);
+            }
+            $typeName = implode(' | ', $types);
+            $nullable = false;
         } else {
-            // todo: deprecate untyped vars
-            $typeName = 'any';
-            $nullable = true;
+            $typeName = $this->getTypeDefinition($type, $definition);
+            $nullable = $type->allowsNull();
         }
-
-        if(isset(self::MAPPING[$typeName])) {
-            $typeName = self::MAPPING[$typeName];
-        } elseif(class_exists($typeName)) {
-            $typeName = $this->getSlug($typeName);
-        }
-
-//        if($name === 'id' || preg_match('/Id$/', $name)) {
-//            $typeName = 'TIdentifier';
-//        }
 
         $q = '';
 
-        if($notNull) $nullable = false;
+
+
         if($undefined) $q = '?';
         if(isset($defaults[$name])) $q = '?';
         if(!isset($defaults[$name]) && !$notBlank) $q = '?';
         if($groups && in_array('main', $groups->getGroups())) $q = '';
         if($visible) $q = '';
-        if($choice) $typeName = "'" . implode("' | '", $choice->choices) . "'";
+        if($choice && !$definition) $typeName = "'" . implode("' | '", $choice->choices) . "'" . ($nullable ? ' | null' : '');
+        $result .= "  " . $name . $q .  ': ' . $typeName  . ';' . PHP_EOL;
+        return $result;
+    }
 
-        $definition .= "  " . $name . $q .  ': ' . ($T ? $T->value : $typeName)  . ($nullable ? ' | null' : '') . ';' . PHP_EOL;
-
-        return $definition;
+    private function getTypeDefinition(ReflectionNamedType $type, ?Definition $definition): string {
+        $typeName = $type->getName();
+        if(isset(self::MAPPING[$typeName])) {
+            $typeName = self::MAPPING[$typeName];
+        } elseif(class_exists($typeName)) {
+            $typeName = $this->getSlug($typeName);
+        }
+        return ($definition?->value ?? $typeName) . ($type->allowsNull() ? ' | null' : '');
     }
 
 	public function getSlug(?string $name): string {

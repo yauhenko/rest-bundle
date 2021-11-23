@@ -105,7 +105,6 @@ class Docs extends AbstractController {
 
 		}
 
-
 		return $this->render('@Rest/docs.twig', [
 			'docs' => $controllers,
 			'ts_enabled' => $parameterBag->get('yauhenko.rest.ts_enabled'),
@@ -114,7 +113,6 @@ class Docs extends AbstractController {
 		]);
 
 	}
-
 
 	#[Route('/remote.ts')]
 	public function remote(ParameterBagInterface $params): Response {
@@ -131,7 +129,8 @@ class Docs extends AbstractController {
 			call_user_func([$typesClass, 'registerTypes'], $ts);
 		}
 
-		$out = "import { rest, endpoint } from './rest-client';\n\n";
+		$out = "import { rest, endpoint } from './rest-config';\n\n";
+		$out .= "if (rest.debug) console.info('REST Endpoint', endpoint);\n\n";
 		$out .= $ts->getTypeScriptCode();
 		$out .= "\n\n";
 
