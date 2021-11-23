@@ -216,4 +216,11 @@ class ObjectBuilder {
 		}
 	}
 
+    public function doIfDefined(object $object, string $property, callable $action) {
+        if(self::isPropertyDefined($object, $property)) {
+            $value = $object->$property;
+            call_user_func($action, $value);
+        }
+    }
+
 }

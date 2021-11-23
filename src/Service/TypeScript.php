@@ -4,11 +4,15 @@ namespace Yauhenko\RestBundle\Service;
 
 use Exception;
 use ReflectionClass;
+use ReflectionMethod;
+use ReflectionProperty;
 use ReflectionNamedType;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints\Choice;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Yauhenko\RestBundle\Attributes\TypeScript\Hidden;
 use Yauhenko\RestBundle\Attributes\TypeScript\NotNull;
+use Yauhenko\RestBundle\Attributes\TypeScript\Visible;
 use Yauhenko\RestBundle\Attributes\TypeScript\Undefined;
 use Yauhenko\RestBundle\Attributes\TypeScript\Definition;
 
@@ -125,60 +129,104 @@ class TypeScript {
 	public function getInterfaceDefinition(?string $class): string {
 		if(!$class) return '';
 		$rc = new ReflectionClass($class);
-		/** @var Definition|null $T */
-		$T = $this->classResolver->getAttribute($rc, Definition::class);
-		$definition = '';// ' . $class . PHP_EOL;
-		$definition .= 'export interface ' . $this->getSlug($class)  . ($T ? ($T->getValue() ? '<T>' : null) : null) . ' {' . PHP_EOL;
+		/** @var Definition|null $definition */
+		$definition = $this->classResolver->getAttribute($rc, Definition::class);
+
+		$result = 'export interface ' . $this->getSlug($class) .
+            ($definition ? ($definition->getValue() ? '<T>' : null) : null) . ' {' . PHP_EOL;
 
 		$defaults = $rc->getDefaultProperties();
 
+        $names = [];
+
+        // properties
 		foreach($rc->getProperties() as $rp) {
-			$name = $rp->getName();
-			if($name === 'request') continue;
-
-			//if(preg_match('/Entity/', $class) && !$groups) continue;
-
-			if(!method_exists($class, 'get' . $name) && !$rp->isPublic() ) continue;
-			/** @var ReflectionNamedType $type */
-			if($type = $rp->getType()) {
-				$nullable = $type->allowsNull();
-				$typeName = $type->getName();
-			} else {
-				$typeName = 'any';
-				$nullable = true;
-			}
-
-			if(isset(self::MAPPING[$typeName])) {
-				$typeName = self::MAPPING[$typeName];
-			} elseif(preg_match('/(Entity|Model)/', $typeName)) {
-				$typeName = $this->getSlug($typeName);
-			}
-
-			if($name === 'id') {
-				$name = 'readonly ' . $name;
-			}
-
-			$groups = $this->classResolver->getAttribute($rp, Groups::class);
-			$notBlank = $this->classResolver->getAttribute($rp, NotBlank::class);
-			$notNull = $this->classResolver->getAttribute($rp, NotNull::class);
-			$undefined = $this->classResolver->getAttribute($rp, Undefined::class);
-			$T = $this->classResolver->getAttribute($rp, Definition::class);
-			$choice = $this->classResolver->getAttribute($rp, Choice::class);
-
-			$q = '';
-
-			if($notNull) $nullable = false;
-			if($undefined) $q = '?';
-			if(isset($defaults[$name])) $q = '?';
-			if(!isset($defaults[$name]) && !$notBlank) $q = '?';
-			if($groups && in_array('main', $groups->getGroups())) $q = '';
-			if($choice) $typeName = "'" . implode("' | '", $choice->choices) . "'";
-
-			$definition .= "  " . $name . $q .  ': ' . ($T ? $T->value : $typeName)  . ($nullable ? ' | null' : '') . ';' . PHP_EOL;
+            $result .= $this->getRefDefinition($rp, $defaults, $names);
 		}
-		$definition .= '}' . PHP_EOL . PHP_EOL;
-		return $definition;
+
+        // methods (getters)
+        foreach($rc->getMethods() as $rm) {
+            if(preg_match('/^get/', $rm->getName())) {
+                $result .= $this->getRefDefinition($rm, $defaults, $names);
+            }
+        }
+
+		$result .= '}' . PHP_EOL . PHP_EOL;
+		return $result;
 	}
+
+    private function getRefDefinition(ReflectionProperty|ReflectionMethod $r, array $defaults = [], array & $names = []): ?string {
+
+        $definition = '';
+
+        $name = $r->getName();
+
+        if($r instanceof ReflectionMethod) {
+            $name = preg_replace('/^get/', '', $name);
+            $name = strtolower(substr($name, 0, 1)) . substr($name, 1);
+        }
+
+        if($r instanceof ReflectionProperty) {
+            if(!$r->getDeclaringClass()->hasMethod("get{$name}") && !$r->isPublic()) return null;
+        } else {
+            if(!$r->isPublic()) return null;
+        }
+
+        if(in_array($name, $names)) return null;
+        $names[] = $name;
+
+        // Attributes
+        $hidden = $this->classResolver->getAttribute($r, Hidden::class);
+        $visible = $this->classResolver->getAttribute($r, Visible::class);
+        if($hidden) return null;
+        $groups = $this->classResolver->getAttribute($r, Groups::class);
+        $notBlank = $this->classResolver->getAttribute($r, NotBlank::class);
+        $notNull = $this->classResolver->getAttribute($r, NotNull::class);
+        $undefined = $this->classResolver->getAttribute($r, Undefined::class);
+        $T = $this->classResolver->getAttribute($r, Definition::class);
+        $choice = $this->classResolver->getAttribute($r, Choice::class);
+
+        /** @var ReflectionNamedType $type */
+
+        if($r instanceof ReflectionMethod) {
+            $type = $r->getReturnType();
+        } else {
+            $type = $r->getType();
+        }
+
+        if($type) {
+            $nullable = $type->allowsNull();
+            $typeName = $type->getName();
+        } else {
+            // todo: deprecate untyped vars
+            $typeName = 'any';
+            $nullable = true;
+        }
+
+        if(isset(self::MAPPING[$typeName])) {
+            $typeName = self::MAPPING[$typeName];
+        } elseif(class_exists($typeName)) {
+            $typeName = $this->getSlug($typeName);
+        }
+
+//        if($name === 'id' || preg_match('/Id$/', $name)) {
+//            $typeName = 'TIdentifier';
+//        }
+
+        $q = '';
+
+        if($notNull) $nullable = false;
+        if($undefined) $q = '?';
+        if(isset($defaults[$name])) $q = '?';
+        if(!isset($defaults[$name]) && !$notBlank) $q = '?';
+        if($groups && in_array('main', $groups->getGroups())) $q = '';
+        if($visible) $q = '';
+        if($choice) $typeName = "'" . implode("' | '", $choice->choices) . "'";
+
+        $definition .= "  " . $name . $q .  ': ' . ($T ? $T->value : $typeName)  . ($nullable ? ' | null' : '') . ';' . PHP_EOL;
+
+        return $definition;
+    }
 
 	public function getSlug(?string $name): string {
 		if($name === 'bool') return 'boolean';
