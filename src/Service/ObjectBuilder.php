@@ -48,6 +48,11 @@ class ObjectBuilder {
 		foreach($rc->getProperties(ReflectionProperty::IS_PUBLIC) as $rp) {
 			/** @var ReflectionNamedType|ReflectionUnionType|null $type */
 			$type = $rp->getType();
+
+            if($type instanceof ReflectionUnionType) {
+                $type = $type->getTypes()[0];
+            }
+
 			$key = $rp->getName();
 			$isSet = true;
 			if(key_exists($key, $data)) {
