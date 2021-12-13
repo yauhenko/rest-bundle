@@ -11,7 +11,7 @@ class ResponseSubscriber implements EventSubscriberInterface {
 		$headers = $event->getResponse()->headers;
 		$headers->set('Access-Control-Allow-Origin', '*');
 		if($event->getRequest()->getMethod() === 'OPTIONS') {
-			//$headers->set('Access-Control-Allow-Methods', '*');
+			$headers->set('Access-Control-Allow-Methods', '*');
 			$headers->set('Access-Control-Allow-Headers', ['*', 'Authorization']);
 			$headers->set('Access-Control-Allow-Credentials', 'true');
 			$headers->set('Access-Control-Max-Age', '1728000');
