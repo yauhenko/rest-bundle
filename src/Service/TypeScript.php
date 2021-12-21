@@ -5,9 +5,11 @@ namespace Yauhenko\RestBundle\Service;
 use Exception;
 use ReflectionClass;
 use ReflectionMethod;
+use RuntimeException;
 use ReflectionProperty;
 use ReflectionNamedType;
 use ReflectionUnionType;
+use Yauhenko\RestBundle\Validator\EnumChoice;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints\Choice;
 use Yauhenko\RestBundle\Attributes\Api\RequestModel;
@@ -58,7 +60,7 @@ class TypeScript {
 		return $this->registerRaw($name, $definition);
 	}
 
-	public function registerEnum(string $name, array $enum): self {
+	public function registerArrayEnum(string $name, array $enum): self {
 		$definition = [];
 		foreach($enum as $key => $value) {
 			if(is_numeric($key)) {
@@ -84,7 +86,19 @@ class TypeScript {
 
 	public function registerInterface(string $class): self {
 		if(!class_exists($class)) throw new Exception('Invalid class: ' . $class);
-		$slug = $this->getSlug($class);
+        $rc = new ReflectionClass($class);
+        if($rc->isEnum()) {
+            $slug = $this->getSlug($class, 'E');
+            $vals = [];
+            foreach($class::cases() as $case) {
+                $vals[$case->name] = $case->value;
+            }
+            $this->registerArrayEnum($slug, $vals);
+            return $this;
+        }
+
+        $slug = $this->getSlug($class);
+
         if($definition = $this->getInterfaceDefinition($class)) {
             $this->registerRaw($slug, $definition);
         }
@@ -195,6 +209,8 @@ class TypeScript {
         $undefined = $this->classResolver->getAttribute($r, Undefined::class);
         $definition = $this->classResolver->getAttribute($r, Definition::class);
         $choice = $this->classResolver->getAttribute($r, Choice::class);
+        /** @var EnumChoice|null $enumChoice */
+        $enumChoice = $this->classResolver->getAttribute($r, EnumChoice::class);
 
         if($r instanceof ReflectionMethod) {
             $type = $r->getReturnType();
@@ -224,6 +240,10 @@ class TypeScript {
         if($groups && in_array('main', $groups->getGroups())) $q = '';
         if($visible) $q = '';
         if($choice && !$definition) $typeName = "'" . implode("' | '", $choice->choices) . "'" . ($nullable ? ' | null' : '');
+        if($enumChoice && !$definition) {
+            $typeName = $this->getSlug($enumChoice->enum, 'E') . ($nullable ? ' | null' : '');
+//            $typeName = "'" . implode("' | '", self::getEnumCases($enumChoice->enum, false)) . "'" . ($nullable ? ' | null' : '');
+        }
         $result .= "  " . $name . $q .  ': ' . $typeName  . ';' . PHP_EOL;
         return $result;
     }
@@ -235,10 +255,20 @@ class TypeScript {
         } elseif(class_exists($typeName)) {
             $typeName = $this->getSlug($typeName);
         }
+
+        if($class = $definition?->value) {
+            if(class_exists($class)) {
+                $rc = new ReflectionClass($class);
+                if($rc->isEnum()) {
+                    $definition->value = $this->getSlug($class, 'E');
+                }
+            }
+        }
+
         return ($definition?->value ?? $typeName) . ($type->allowsNull() ? ' | null' : '');
     }
 
-	public function getSlug(?string $name): string {
+	public function getSlug(?string $name, string $prefix = 'I'): string {
 		if($name === 'bool') return 'boolean';
 		if($name === 'int' || $name === 'integer' || $name === 'float' || $name === 'double') return 'number';
 		if($name === 'mixed') return 'any';
@@ -246,7 +276,7 @@ class TypeScript {
 		if(!$name) return 'null';
 		$name = explode('\\', $name);
 		$name = array_pop($name);
-		return 'I' . $name;
+		return $prefix . $name;
 	}
 
 	public function prettify(string $code, string $cacheDir): string {
@@ -277,5 +307,20 @@ class TypeScript {
 	public function getGroups(): array {
 		return $this->groups;
 	}
+
+    public static function getEnumCases(string $enumClass, bool $named = true): array {
+        if(!class_exists($enumClass)) throw new RuntimeException('Unknown enum: ' . $enumClass);
+        $rc = new ReflectionClass($enumClass);
+        if(!$rc->isEnum()) throw new RuntimeException('Not enum: ' . $enumClass);
+        $cases = [];
+        foreach($enumClass::cases() as $case) {
+            if($named) {
+                $cases[ $case->name ] = $case->value;
+            } else {
+                $cases[] = $case->value;
+            }
+        }
+        return $cases;
+    }
 
 }
