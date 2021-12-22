@@ -72,7 +72,7 @@ class ObjectBuilder {
 				} elseif(class_exists($type->getName()) && $value !== null) {
                     $rc1 = new ReflectionClass($type->getName());
                     if($rc1->isEnum()) {
-                        $value = $type->getName()::from($value);
+                        $value = is_scalar($value) ? $type->getName()::from($value) : $value;
                     }
                 }
 			}
