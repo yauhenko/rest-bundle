@@ -27,6 +27,8 @@ class EnumChoiceValidator extends ConstraintValidator {
 
         if(!isset($value)) return;
 
+        if(!is_scalar($value)) $value = $value->value;
+
         $cases = [];
         foreach($constraint->enum::cases() as $case) {
             $cases[] = $case->value;

@@ -6,6 +6,7 @@ use DateTime;
 use Exception;
 use Throwable;
 use ReflectionClass;
+use RuntimeException;
 use DateTimeInterface;
 use ReflectionProperty;
 use ReflectionNamedType;
@@ -68,7 +69,12 @@ class ObjectBuilder {
 					$value = $this->cast($value, $type->getName());
 				} elseif(is_array($value)) {
 					$value = $this->build($type->getName(), $value);
-				}
+				} elseif(class_exists($type->getName()) && $value !== null) {
+                    $rc1 = new ReflectionClass($type->getName());
+                    if($rc1->isEnum()) {
+                        $value = $type->getName()::from($value);
+                    }
+                }
 			}
 
 			if($name = $rp->getAttributes(Name::class)) {
@@ -226,6 +232,21 @@ class ObjectBuilder {
             $value = $object->$property;
             call_user_func($action, $value);
         }
+    }
+
+    public static function getEnumCases(string $enumClass, bool $named = true): array {
+        if(!class_exists($enumClass)) throw new RuntimeException('Unknown enum: ' . $enumClass);
+        $rc = new ReflectionClass($enumClass);
+        if(!$rc->isEnum()) throw new RuntimeException('Not enum: ' . $enumClass);
+        $cases = [];
+        foreach($enumClass::cases() as $case) {
+            if($named) {
+                $cases[ $case->name ] = $case->value;
+            } else {
+                $cases[] = $case->value;
+            }
+        }
+        return $cases;
     }
 
 }

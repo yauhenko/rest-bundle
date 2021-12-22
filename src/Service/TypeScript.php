@@ -5,7 +5,6 @@ namespace Yauhenko\RestBundle\Service;
 use Exception;
 use ReflectionClass;
 use ReflectionMethod;
-use RuntimeException;
 use ReflectionProperty;
 use ReflectionNamedType;
 use ReflectionUnionType;
@@ -307,20 +306,5 @@ class TypeScript {
 	public function getGroups(): array {
 		return $this->groups;
 	}
-
-    public static function getEnumCases(string $enumClass, bool $named = true): array {
-        if(!class_exists($enumClass)) throw new RuntimeException('Unknown enum: ' . $enumClass);
-        $rc = new ReflectionClass($enumClass);
-        if(!$rc->isEnum()) throw new RuntimeException('Not enum: ' . $enumClass);
-        $cases = [];
-        foreach($enumClass::cases() as $case) {
-            if($named) {
-                $cases[ $case->name ] = $case->value;
-            } else {
-                $cases[] = $case->value;
-            }
-        }
-        return $cases;
-    }
 
 }
