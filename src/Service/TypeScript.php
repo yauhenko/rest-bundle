@@ -252,7 +252,8 @@ class TypeScript {
         if(isset(self::MAPPING[$typeName])) {
             $typeName = self::MAPPING[$typeName];
         } elseif(class_exists($typeName)) {
-            $typeName = $this->getSlug($typeName);
+            $rc = new ReflectionClass($typeName);
+            $typeName = $this->getSlug($typeName, $rc->isEnum() ? 'E' : 'I');
         }
 
         if($class = $definition?->value) {

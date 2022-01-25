@@ -1,6 +1,6 @@
 {
 	"name": "yauhenko/rest-bundle",
-	"version": "0.8.2",
+	"version": "0.8.3",
 	"type": "symfony-bundle",
 	"minimum-stability": "stable",
 	"description": "REST and Docs for Symfony 6",
