@@ -5,7 +5,7 @@ class RestAPI {
   private token: string | null = null;
   private statusCode: number = 0;
   private instances: Record<string, object> = {};
-  private authErrorHandler: () => void;
+  private authErrorHandler?: () => void;
   public debug: boolean = false;
 
   constructor(url: string, debug: boolean) {
@@ -17,7 +17,7 @@ class RestAPI {
     return this.url;
   };
 
-  setAuthErrorHandler = (handler: () => void) => {
+  setAuthErrorHandler = (handler?: () => void) => {
     this.authErrorHandler = handler;
   }
 
