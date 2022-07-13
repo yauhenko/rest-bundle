@@ -1,7 +1,4 @@
 parameters:
-    yauhenko.rest.title: 'Rest API Docs'
-    yauhenko.rest.logo: ''
-    yauhenko.rest.docs_enabled: true
     yauhenko.rest.ts_enabled: true
     yauhenko.rest.types_class: 'App\Types'
     yauhenko.rest.cache_dir: '%kernel.cache_dir%'
@@ -16,4 +13,4 @@ services:
     Yauhenko\RestBundle\EventSubscriber\RequestSubscriber: ~
     Yauhenko\RestBundle\EventSubscriber\ResponseSubscriber: ~
     Yauhenko\RestBundle\Service\ObjectBuilder: ~
-    Yauhenko\RestBundle\Controller\Docs: ~
+    Yauhenko\RestBundle\Controller\Rest: ~

@@ -44,16 +44,6 @@ You can change path to Types class using `yauhenko.rest.types_class` parameter i
 *Step 4 (optional): Configure `config/services.yaml`:*
 ```yaml
 parameters:
-    
-    # Page title (default: 'Rest API Docs') 
-    yauhenko.rest.title: 'My API Docs'
-    
-    # Logo (default: '')
-    yauhenko.rest.logo: '/assets/images/logo.png'
-    
-    # Enable docs route /docs (default: true)
-    yauhenko.rest.docs_enabled: '%env(bool:API_DOCS_ENABLED)%'
-    
     # Enable TypeScript generation (default: true)
     yauhenko.rest.ts_enabled: '%env(bool:API_TS_ENABLED)%'
     
